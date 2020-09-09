@@ -23,6 +23,10 @@ def make_exec(file_name):
     st = os.stat(file_name)
     os.chmod(file_name, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
+def pip_version():
+    import pip
+    return [int(x) for x in pip.__version__.split('.')]
+
 # from https://github.com/cms-sw/cmssw-config/blob/2c6a8489706e02c8d4fbc4769b9146faabd3b383/SCRAM/hooks/runtime-hook
 _runtime_hook_contents = """
 #!/bin/bash
@@ -81,7 +85,14 @@ Notes:
     # call pip (if any packages requested)
     if args.packages is not None and len(args.packages)>0:
         if not isinstance(args.packages,list): args.packages = [args.packages]
-        call_args = [exe,"-m","pip","install","--prefix",full_dir]
+
+        # check pip version: --prefix arg introduced in 8.0.0
+        prefix_args = []
+        pipv = pip_version()
+        if pipv[0] < 8: prefix_args = ["--install-option",'"--prefix={}"'.format(full_dir)]
+        else: prefix_args = ["--prefix",full_dir]
+
+        call_args = [exe,"-m","pip","install"]+prefix_args
         if args.pip_args is not None and len(args.pip_args)>0: call_args.extend(args.pip_args)
         call_args.extend(args.packages)
         subprocess.check_call(call_args)
